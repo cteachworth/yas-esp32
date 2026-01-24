@@ -183,6 +183,14 @@ void checkWifiConnection() {
 
 void connectBluetooth() {
     lastBtConnectAttempt = millis();
+
+    // Clean up any existing connection first
+    if (SerialBT.connected()) {
+        Serial.println("Disconnecting existing Bluetooth connection...");
+        SerialBT.disconnect();
+        delay(500);  // Give time for cleanup
+    }
+
     Serial.println("Connecting to soundbar...");
 
     // Try MAC address first (more reliable, skips discovery)
@@ -196,22 +204,46 @@ void connectBluetooth() {
         }
         if (validAddr && SerialBT.connect(addr)) {
             Serial.println("Bluetooth connected (MAC)!");
-            btConnected = true;
-            if (mqtt.connected()) {
-                mqtt.publish(MQTT_AVAILABLE_TOPIC, "online", true);
+
+            // CRITICAL: Wait for SPP link to fully establish
+            delay(1000);
+
+            // Verify connection is still valid
+            if (SerialBT.connected()) {
+                btConnected = true;
+                lastStatusPoll = millis();  // Reset to prevent immediate polling
+
+                if (mqtt.connected()) {
+                    mqtt.publish(MQTT_AVAILABLE_TOPIC, "online", true);
+                }
+                Serial.println("Bluetooth connection stabilized");
+                return;
+            } else {
+                Serial.println("Bluetooth connection lost during stabilization");
             }
-            return;
         }
     }
 
     // Fallback to name-based discovery
     if (SerialBT.connect(SOUNDBAR_NAME)) {
         Serial.println("Bluetooth connected (name)!");
-        btConnected = true;
-        if (mqtt.connected()) {
-            mqtt.publish(MQTT_AVAILABLE_TOPIC, "online", true);
+
+        // CRITICAL: Wait for SPP link to fully establish
+        delay(1000);
+
+        // Verify connection is still valid
+        if (SerialBT.connected()) {
+            btConnected = true;
+            lastStatusPoll = millis();  // Reset to prevent immediate polling
+
+            if (mqtt.connected()) {
+                mqtt.publish(MQTT_AVAILABLE_TOPIC, "online", true);
+            }
+            Serial.println("Bluetooth connection stabilized");
+            return;
+        } else {
+            Serial.println("Bluetooth connection lost during stabilization");
         }
-        return;
     }
 
     Serial.println("Bluetooth connection failed");

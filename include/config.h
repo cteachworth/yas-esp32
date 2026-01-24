@@ -11,7 +11,7 @@
 #define BT_DEVICE_NAME "YAS-Bridge"
 
 // Connection settings
-#define BT_RECONNECT_DELAY_MS 10000
+#define BT_RECONNECT_DELAY_MS 30000  // Increased to 30s to reduce stack stress
 #define STATUS_REQUEST_TIMEOUT_MS 3000
 #define WIFI_RECONNECT_DELAY_MS 5000
 #define MQTT_RECONNECT_DELAY_MS 5000
@@ -25,6 +25,6 @@
 #define MQTT_AVAILABLE_TOPIC MQTT_BASE_TOPIC "/available"
 
 // Status polling interval (for catching remote control changes)
-#define STATUS_POLL_INTERVAL_MS 2000
+#define STATUS_POLL_INTERVAL_MS 5000  // Reduced frequency to prevent stack overload
 
 #endif
