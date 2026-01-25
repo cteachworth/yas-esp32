@@ -38,6 +38,7 @@ unsigned long lastMqttConnectAttempt = 0;
 unsigned long lastStatusPoll = 0;
 volatile bool wifiGotIP = false;
 YasStatus lastStatus = {false, "unknown", false, 0, 0, "unknown", false, false, false};
+float lastTemperature = 0.0;
 
 void WiFiEvent(WiFiEvent_t event) {
     switch (event) {
@@ -161,6 +162,16 @@ void loop() {
                 publishStatus(status);
             }
         }
+
+        // Read and publish ESP32 internal temperature
+        float currentTemp = temperatureRead();
+        if (abs(currentTemp - lastTemperature) > 0.5) {
+            lastTemperature = currentTemp;
+            if (mqtt.connected()) {
+                String tempTopic = String(MQTT_BASE_TOPIC) + "/temperature";
+                mqtt.publish(tempTopic.c_str(), String(currentTemp, 1).c_str(), true);
+            }
+        }
     }
 
     yield();
@@ -205,11 +216,22 @@ void connectBluetooth() {
         if (validAddr && SerialBT.connect(addr)) {
             Serial.println("Bluetooth connected (MAC)!");
 
-            // CRITICAL: Wait for SPP link to fully establish
-            delay(1000);
+            // CRITICAL: Wait for SPP link and pairing to fully establish
+            delay(2000);
 
             // Verify connection is still valid
             if (SerialBT.connected()) {
+                // Send a status request to complete the pairing handshake
+                // and signal to the soundbar that the connection is active
+                Serial.println("Completing pairing handshake...");
+                YasStatus status = requestStatus();
+                if (status.valid) {
+                    Serial.println("Pairing completed successfully!");
+                    lastStatus = status;
+                } else {
+                    Serial.println("Warning: Status request failed, but connection established");
+                }
+
                 btConnected = true;
                 lastStatusPoll = millis();  // Reset to prevent immediate polling
 
@@ -228,11 +250,22 @@ void connectBluetooth() {
     if (SerialBT.connect(SOUNDBAR_NAME)) {
         Serial.println("Bluetooth connected (name)!");
 
-        // CRITICAL: Wait for SPP link to fully establish
-        delay(1000);
+        // CRITICAL: Wait for SPP link and pairing to fully establish
+        delay(2000);
 
         // Verify connection is still valid
         if (SerialBT.connected()) {
+            // Send a status request to complete the pairing handshake
+            // and signal to the soundbar that the connection is active
+            Serial.println("Completing pairing handshake...");
+            YasStatus status = requestStatus();
+            if (status.valid) {
+                Serial.println("Pairing completed successfully!");
+                lastStatus = status;
+            } else {
+                Serial.println("Warning: Status request failed, but connection established");
+            }
+
             btConnected = true;
             lastStatusPoll = millis();  // Reset to prevent immediate polling
 
@@ -564,6 +597,24 @@ void publishDiscovery() {
         String payload;
         serializeJson(doc, payload);
         mqtt.publish("homeassistant/select/yas_soundbar/surround/config", payload.c_str(), true);
+    }
+
+    // ESP32 Temperature sensor
+    {
+        JsonDocument doc;
+        doc["name"] = "ESP32 Temperature";
+        doc["unique_id"] = "yas_bridge_temperature";
+        doc["state_topic"] = String(MQTT_BASE_TOPIC) + "/temperature";
+        doc["unit_of_measurement"] = "°C";
+        doc["device_class"] = "temperature";
+        doc["availability_topic"] = MQTT_AVAILABLE_TOPIC;
+        doc["device"]["identifiers"][0] = "yas_soundbar";
+        doc["device"]["name"] = "YAS Soundbar";
+        doc["device"]["manufacturer"] = "Yamaha";
+
+        String payload;
+        serializeJson(doc, payload);
+        mqtt.publish("homeassistant/sensor/yas_soundbar/temperature/config", payload.c_str(), true);
     }
 
     Serial.println("MQTT discovery published");

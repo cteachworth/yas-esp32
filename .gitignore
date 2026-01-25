@@ -6,3 +6,4 @@
 
 # Secrets - never commit
 include/secrets.h
+.DS_Store
