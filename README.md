@@ -243,4 +243,4 @@ On boot you'll see detailed connection info:
 
 ## Acknowledgments
 
-Based on work by [Paul Bottein](https://github.com/piitaya/yas-207-bridge).
+Based on work by [Paul Bottein](https://github.com/piitaya/yas-207-bridge) and [Michal Jirků (wejn)](https://github.com/wejn/yamaha-yas-207).
