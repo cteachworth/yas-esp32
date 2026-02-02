@@ -6,4 +6,8 @@
 
 # Secrets - never commit
 include/secrets.h
+
+# OS/IDE files
 .DS_Store
+.claude/
+nul
